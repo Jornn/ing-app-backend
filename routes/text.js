@@ -14,6 +14,7 @@ try {
 
 /* GET users listing. */
 router.get('/test', function (req, res, next) {
+    console.log("JOEJOE")
     res.send('respond with a resource');
 });
 
