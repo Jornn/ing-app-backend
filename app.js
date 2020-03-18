@@ -28,6 +28,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(cors())
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({extended: true}))
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
