@@ -1,18 +1,20 @@
-var createError = require('http-errors')
-var express = require('express')
-var path = require('path')
-var cookieParser = require('cookie-parser')
-var logger = require('morgan')
-
-var indexRouter = require('./routes/index')
-var usersRouter = require('./routes/users')
-var filesRouter = require('./routes/files')
-
-var app = express()
-
-require('dotenv').config()
+import createError from 'http-errors'
+import express from 'express'
+import path from 'path'
+import cookieParser from 'cookie-parser'
+import logger from 'morgan'
+import indexRouter from './routes/index'
+import usersRouter from './routes/users'
+import filesRouter from './routes/files'
 import bodyParser from 'body-parser'
 import cors from 'cors'
+import connectMongo from './helpers/connectMongo'
+
+const app = express()
+require('dotenv').config()
+
+//connect to mongo
+connectMongo.connect()
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'))

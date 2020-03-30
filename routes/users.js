@@ -2,9 +2,10 @@ import User from '../models/user_model'
 import bcrypt from 'bcrypt'
 import { check, validationResult } from 'express-validator'
 import jwt from 'jsonwebtoken'
-
+// import Token from '../middleware/token'
 var express = require('express')
 var router = express.Router()
+
 
 /* GET users listing. */
 router.get('/', function (req, res) {
@@ -70,34 +71,31 @@ router.post('/login', [
   }
 
   const { emailOrUsername, password } = req.body.userData
-  console.log(emailOrUsername)
-  console.log(password)
+  const JWT_SECRET = process.env.JWT_PRIVATE_KEY
+
     
-  await User.findOne({
+  const user = await User.findOne({
     $or: [{ email: emailOrUsername }, { username: emailOrUsername }]
-  }).then(response => {
-    console.log(response)
   }).catch(error => {
     console.log(error)
   })
-
-  console.log('User?')
-  console.log(user)
       
   if (user) {
     return bcrypt.compare(password, user.password, (err, result) => {
       if (err) throw err
       if (result) {
-        console.log(user)
-        console.log(process.env.JWT_PRIVATE_KEY)
-        const token = jwt.sign({ user }, process.env.JWT_PRIVATE_KEY)
+        const token = jwt.sign({ user }, JWT_SECRET)
 
         return res.status(200).send({
           success: true,
           message: 'Login successful',
           type: 'success',
-          user,
-          token
+          user: {
+            id: user._id,
+            username: user.username,
+            email: user.email,
+            token
+          }
         })
       } else {
         return res.status(200).send({
@@ -108,6 +106,19 @@ router.post('/login', [
       }
     })
   }
+    
+  // router.post('/jwt', Token.verifyToken, (req, res) => {
+  //   jwt.verify(req.token, JWT_SECRET, err => {
+  //     if (err) {
+  //       res.sendStatus(401)
+  //     } else {
+  //       res.json({
+  //         success: true,
+  //         message: 'Token verified'
+  //       })
+  //     }
+  //   })
+  // })
   
   return res.status(200).send({
     success: false,
