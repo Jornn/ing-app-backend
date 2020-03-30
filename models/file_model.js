@@ -7,7 +7,7 @@ const fileSchema = new Schema({
     type: Schema.Types.ObjectId,
     required: true
   },
-  file: {
+  fileName: {
     type: String,
     required: true
   }
