@@ -17,31 +17,31 @@ router.post('/register', [
   check('password').isLength({ min: 8 }),
   check('username').isLength({ min: 4 })
 ], async (req, res) => {
-  const errors = validationResult(req)
-
+  const errors = validationResult(req) 
+  console.log(errors)
   if (!errors.isEmpty()) {
     return res.status(422).json({ errors: errors.array() })
   }
 
-  const { email, password, username } = req.body
+  const { email, username, password, } = req.body
 
   const user = await User.findOne({
     $or: [{email},{ username }]
   })
   
-
   if (user) {
     return res.status(200).send({
-      userExists: true,
+      success: false,
+      type: 'error',
       message: 'User already exists'
     })
   }
+    
   const hashRounds = 12
   bcrypt.hash(password, hashRounds, (err, hash) => {
     if (err) {
-      return res.status(400).send({
-        message: 'Something went wrong, contact an admin'
-      })
+      console.log(err)
+      return res.status(400).send()
     }
     return User.create({
       email,
@@ -49,28 +49,27 @@ router.post('/register', [
       password: hash
     }).then(() => {
       return res.status(200).send({
-        message: 'Account created'
+        success: true,
+        message: 'Account created',
+        type: 'success'
       })
     }).catch((error) => {
       console.log(error)
-      return res.status(400).send({
-        message: 'Something went wrong, contact an admin'
-      })
+      return res.status(400).send()
     })
-    // Store hash in your password DB.
   })
 })
 
 
 router.post('/login', [
-  check('userData.password').isLength({ min: 8 })
+  check('password').isLength({ min: 8 })
 ], async (req, res) => {
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
     return res.status(422).json({ errors: errors.array() })
   }
 
-  const { emailOrUsername, password } = req.body.userData
+  const { emailOrUsername, password } = req.body
   const JWT_SECRET = process.env.JWT_PRIVATE_KEY
 
     

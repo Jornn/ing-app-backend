@@ -2,7 +2,7 @@ import File from '../models/file_model'
 import multer from 'multer'
 import AWS from 'aws-sdk'
 import fs from 'fs'
-
+import verifyToken from '../middleware/verifyToken'
 AWS.config.update({ region: 'eu-west-2' })
 
 
@@ -86,7 +86,9 @@ router.post('/update-user-info', async (req, res, next) => {
   })
 })
 
-router.get('/get-uploaded-files', async (req, res, next) => {
+router.get('/get-uploaded-files', verifyToken, async (req, res, next) => {
+  console.log('GET UPLOADED FILES')
+  console.log(req.token)
   const { userId } = req.query
   File.find({
     userId
@@ -99,7 +101,7 @@ router.get('/get-uploaded-files', async (req, res, next) => {
     console.log('FILES:')
     console.log(fileNames)
     res.send({
-      uploadedFiles: fileNames
+      files: fileNames
     })
   })
 })
