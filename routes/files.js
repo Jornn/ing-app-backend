@@ -1,10 +1,9 @@
-import File from '../models/file_model'
+// import File from '../models/file_model'
 import multer from 'multer'
 import AWS from 'aws-sdk'
 import fs from 'fs'
-import verifyToken from '../middleware/verifyToken'
+import jsonWebToken from '../middleware/jsonWebToken'
 AWS.config.update({ region: 'eu-west-2' })
-
 
 var express = require('express')
 var router = express.Router()
@@ -24,84 +23,116 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage: storage })
 
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post('/upload-file', [upload.single('file'), jsonWebToken.getToken, jsonWebToken.verifyToken], async (req, res) => {
   const s3 = new AWS.S3({
     accessKeyId: process.env.AWS_ACCESS_KEY,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
   })
+  const { userId, file: { originalname, destination, filename } } = req
 
-  // console.log(req)
-  // const { userId, file } = req.body
-  console.log(req.file)
-
-  fs.readFile(`${req.file.destination}/${req.file.filename}`, 'utf8', (err, data) => {
+  fs.readFile(`${destination}/${filename}`, 'utf8', (err, data) => {
     if (err) {
       console.log(err)
-      throw err
+      res.sendStatus(422)
     }
+    
     let dataArray = data.split((/\r?\n/))
-
     const params = {
       Bucket: 'ing-app',
-      Key: req.file.originalname
+      Key: `${userId}/${originalname}`
     }
 
     s3.headObject(params, (err, metadata) => {
       if (err && err.code === 'NotFound') {
-        console.log('NOT FOUND')
         params.Body = JSON.stringify(dataArray, null, 2)
         s3.upload(params, (s3Err, data) => {
           if (s3Err) {
-            console.log('S3 ERR')
             console.log(s3Err)
-            throw s3Err
+            return res.sendStatus(422)
           }
-          fs.unlink(`${req.file.destination}/${req.file.filename}`, (err) => {
-            if (err) throw err
-          })
-          res.send({
-            success: true,
-            message: 'file uploaded'
-          })
+        })
+        removeLocalFiler(destination, filename)
+
+        return res.send({
+          success: true,
+          message: 'File upload successful',
+          type: 'success'
         })
       } else if (err) { 
-        throw err
+        console.log(err)
+        return res.sendStatus(422)
       } else {
         res.send({
           success: false,
-          message: 'File already exists'
+          message: 'File already exists',
+          type: 'error'
         })
       }
     })
   })
 })
 
-router.post('/update-user-info', async (req, res, next) => {
-  const { userId, fileName } = req.body
-  File.create({
-    userId,
-    fileName
-  }).then((res) => {
-    console.log(res)
+function removeLocalFiler(destination, filename) {
+  fs.unlink(`${destination}/${filename}`, (err) => {
+    if(err) throw err
+  })
+}
+
+router.get('/get-uploaded-files', [jsonWebToken.getToken, jsonWebToken.verifyToken], async (req, res) => {
+  const s3 = new AWS.S3({
+    accessKeyId: process.env.AWS_ACCESS_KEY,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  })
+  const { userId } = req
+
+  let params = {
+    Bucket: process.env.S3_BUCKET_NAME,
+    Prefix: userId
+  }
+
+  s3.listObjectsV2(params, (err, data) => {
+    if (err) {
+      res.sendStatus(422)
+    }
+    let files = []
+    data.Contents.forEach(entry => {
+      files.push(entry.Key.replace(`${userId}/`, ''))
+    })
+    res.send({
+      files
+    })
   })
 })
 
-router.get('/get-uploaded-files', verifyToken, async (req, res, next) => {
-  console.log('GET UPLOADED FILES')
-  console.log(req.token)
-  const { userId } = req.query
-  File.find({
-    userId
-  }).then((result) => {
-    let fileNames = []
-    result.forEach(entry => {
-      console.log(entry)
-      fileNames.push(entry.fileName)
-    })
-    console.log('FILES:')
-    console.log(fileNames)
+
+//, [jsonWebToken.getToken, jsonWebToken.verifyToken]
+router.get('/fetch/:fileName', async (req, res) => {
+  const { fileName } = req.params
+  const pathFile = `./downloads/${fileName}`
+  const fs = require('fs')
+
+  const s3 = new AWS.S3({
+    accessKeyId: process.env.AWS_ACCESS_KEY,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  })
+
+  //replace userId
+  let userId = '5e3811256e1eac8ab4b7f93f'
+  const params = {
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key: `${userId}/${fileName}`
+  }
+  
+  console.log(params)
+  
+  s3.getObject(params, (err, data) => {
+    console.log(JSON.parse(data.Body.toString()))
+    fs.writeFileSync(pathFile, data.Body, 'utf8')
+    // res.download(pathFile)
+    // res.sendFile(pathFile)
+    res.setHeader('Content-Type', 'text/csv')
     res.send({
-      files: fileNames
+      form: formData
     })
   })
 })
