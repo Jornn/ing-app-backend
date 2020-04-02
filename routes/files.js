@@ -37,6 +37,7 @@ router.post('/upload-file', [upload.single('file'), jsonWebToken.getToken, jsonW
     }
     
     let dataArray = data.split((/\r?\n/))
+
     const params = {
       Bucket: 'ing-app',
       Key: `${userId}/${originalname}`
@@ -78,7 +79,7 @@ function removeLocalFiler(destination, filename) {
   })
 }
 
-router.get('/get-uploaded-files', [jsonWebToken.getToken, jsonWebToken.verifyToken], async (req, res) => {
+router.get('/get-file-names', [jsonWebToken.getToken, jsonWebToken.verifyToken], async (req, res) => {
   const s3 = new AWS.S3({
     accessKeyId: process.env.AWS_ACCESS_KEY,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
@@ -104,12 +105,8 @@ router.get('/get-uploaded-files', [jsonWebToken.getToken, jsonWebToken.verifyTok
   })
 })
 
-
-//, [jsonWebToken.getToken, jsonWebToken.verifyToken]
-router.get('/fetch/:fileName', async (req, res) => {
-  const { fileName } = req.params
-  const pathFile = `./downloads/${fileName}`
-  const fs = require('fs')
+router.get('/fetch/:fileName', [jsonWebToken.getToken, jsonWebToken.verifyToken], async (req, res) => {
+  const { userId, params: { fileName }} = req
 
   const s3 = new AWS.S3({
     accessKeyId: process.env.AWS_ACCESS_KEY,
@@ -117,22 +114,20 @@ router.get('/fetch/:fileName', async (req, res) => {
   })
 
   //replace userId
-  let userId = '5e3811256e1eac8ab4b7f93f'
   const params = {
     Bucket: process.env.S3_BUCKET_NAME,
     Key: `${userId}/${fileName}`
   }
   
-  console.log(params)
-  
   s3.getObject(params, (err, data) => {
-    console.log(JSON.parse(data.Body.toString()))
-    fs.writeFileSync(pathFile, data.Body, 'utf8')
-    // res.download(pathFile)
-    // res.sendFile(pathFile)
+    if (err) {
+      console.log(err)
+      res.sendStatus(422)
+    }
+    let file = JSON.parse(data.Body.toString())
     res.setHeader('Content-Type', 'text/csv')
     res.send({
-      form: formData
+      file
     })
   })
 })
